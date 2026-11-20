@@ -13,6 +13,7 @@ import (
 	rsql "alpha/internal/objects/sql"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type userRepository struct {
@@ -24,14 +25,24 @@ func NewUserRepository(db *sql.DB) interfaces.UserInterface {
 }
 
 func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+	return createUser(ctx, r.db, user)
+}
+
+func createUser(ctx context.Context, q interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, user *models.User) error {
 	now := time.Now()
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
-	_, err := r.db.ExecContext(
+	var email any
+	if user.Email != "" {
+		email = user.Email
+	}
+	_, err := q.ExecContext(
 		ctx, rsql.CreateUser,
 		user.ID,
-		user.Email,
+		email,
 		user.Nickname,
 		user.PasswordHash,
 		user.Role,
@@ -43,9 +54,43 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 		user.UpdatedAt,
 	)
 	if err != nil {
+		var pg *pgconn.PgError
+		if errors.As(err, &pg) && pg.Code == "23505" {
+			return uerr.ErrUserExists
+		}
 		return fmt.Errorf("create user: %w", err)
 	}
 	return nil
+}
+
+func (r *userRepository) CreateWithInvitation(ctx context.Context, user *models.User, code string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var invitationID, creator uuid.UUID
+	err = tx.QueryRowContext(ctx, `
+		SELECT id, created_by FROM invitations WHERE code = $1 AND used_by IS NULL
+			AND (expires_at IS NULL OR expires_at > now()) FOR UPDATE
+	`, code).Scan(&invitationID, &creator)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uerr.ErrInvitationNotFound
+	}
+	if err != nil {
+		return err
+	}
+	user.ReferredBy = &invitationID
+	if err := createUser(ctx, tx, user); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, rsql.UseInvitation, user.ID, invitationID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, rsql.IncrementReferrals, creator); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {

@@ -9,6 +9,7 @@ import (
 
 type UserPublic struct {
 	ID              uuid.UUID       `json:"id"`
+	Email           string          `json:"email,omitempty"`
 	Nickname        string          `json:"nickname"`
 	Role            models.UserRole `json:"role"`
 	EmailVerifiedAt *time.Time      `json:"email_verified_at"`
@@ -16,19 +17,8 @@ type UserPublic struct {
 }
 
 type RegisterRequest struct {
-	Email          string `json:"email" validate:"required,email"`
+	Email          string `json:"email"`
 	Nickname       string `json:"nickname" validate:"required,min=3,max=50"`
 	Password       string `json:"password" validate:"required,min=8"`
 	InvitationCode string `json:"invitation_code" validate:"required"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-type LoginResponse struct {
-	Token     string     `json:"token"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	User      UserPublic `json:"user"`
 }

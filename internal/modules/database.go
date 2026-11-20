@@ -1,33 +1,36 @@
 package modules
 
 import (
-	"alpha/constants"
-	"alpha/internal/modules/logger"
-	"alpha/internal/objects/config"
 	"context"
 	"database/sql"
 	"embed"
 	"fmt"
+	"io/fs"
+	"net"
+	"net/url"
+
+	"alpha/constants"
+	"alpha/internal/modules/logger"
+	"alpha/internal/objects/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func NewPostgresDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf(
-		constants.PG_CONNECT,
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
-		cfg.DBName,
-		cfg.SSLMode,
-	)
+	dsn := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(cfg.User, cfg.Password),
+		Host:     net.JoinHostPort(cfg.Host, cfg.Port),
+		Path:     "/" + cfg.DBName,
+		RawQuery: url.Values{"sslmode": {cfg.SSLMode}}.Encode(),
+	}
 
-	db, err := sql.Open("pgx", dsn)
+	db, err := sql.Open("pgx", dsn.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
@@ -52,16 +55,22 @@ func NewPostgresDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-func ApplyMigrations(db *sql.DB) error {
-	logger.Log.Info("Приминяю миграции...")
-
-	goose.SetBaseFS(migrationsFS)
-	defer goose.SetBaseFS(nil)
-
-	if err := goose.Up(db, "migrations"); err != nil {
+func ApplyMigrations(ctx context.Context, db *sql.DB) error {
+	migrations, err := fs.Sub(migrationsFS, "migrations")
+	if err != nil {
 		return err
 	}
-
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		return err
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrations, goose.WithSessionLocker(locker))
+	if err != nil {
+		return err
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		return err
+	}
 	logger.Log.Info("Все миграции применены успешно")
 	return nil
 }

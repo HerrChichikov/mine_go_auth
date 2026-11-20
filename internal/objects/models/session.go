@@ -29,3 +29,12 @@ func (s *Session) IsActive() bool {
 func (s *Session) UpdateLastActive() {
 	s.LastActiveAt = time.Now()
 }
+
+type AccountSession struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	AccessHash   string
+	RefreshHash  string
+	AccessUntil  time.Time
+	RefreshUntil time.Time
+}

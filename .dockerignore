@@ -1,8 +1,9 @@
 .git
 .gitignore
 *.md
-.env
+.env*
 .idea
 .vscode
 vendor/
 docker/
+secrets/

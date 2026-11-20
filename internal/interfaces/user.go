@@ -3,7 +3,6 @@ package interfaces
 import (
 	"context"
 
-	"alpha/internal/objects/dto"
 	"alpha/internal/objects/models"
 
 	"github.com/google/uuid"
@@ -11,6 +10,7 @@ import (
 
 type UserInterface interface {
 	Create(ctx context.Context, user *models.User) error
+	CreateWithInvitation(ctx context.Context, user *models.User, code string) error
 
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
@@ -26,10 +26,4 @@ type UserInterface interface {
 	IncrementReferralsCount(ctx context.Context, id uuid.UUID) error
 
 	SoftDelete(ctx context.Context, id uuid.UUID) error
-}
-
-type UserUseCase interface {
-	Register(ctx context.Context, req dto.RegisterRequest) (*models.User, error)
-	Login(ctx context.Context, email, password string) (sessionToken string, user *models.User, err error)
-	GetProfile(ctx context.Context, userID uuid.UUID) (*models.User, error)
 }

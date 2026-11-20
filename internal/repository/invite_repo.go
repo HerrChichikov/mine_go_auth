@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"alpha/internal/interfaces"
-	"alpha/internal/modules/logger"
 	ierr "alpha/internal/objects/errors"
 	"alpha/internal/objects/models"
 	rsql "alpha/internal/objects/sql"
@@ -103,9 +102,6 @@ func (r *invitationRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *invitationRepository) getOne(ctx context.Context, query string, args ...any) (*models.Invitation, error) {
-	// Логируем запрос
-	logger.Log.Sugar().Debugf("Executing query: %s with args: %v", query, args)
-
 	row := r.db.QueryRowContext(ctx, query, args...)
 
 	inv := &models.Invitation{}
@@ -121,15 +117,12 @@ func (r *invitationRepository) getOne(ctx context.Context, query string, args ..
 	)
 
 	if err != nil {
-		logger.Log.Sugar().Errorf("Scan error: %v", err)
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ierr.ErrInvitationNotFound
 		}
 		return nil, fmt.Errorf("scan invitation: %w", err)
 	}
 
-	logger.Log.Sugar().Debugf("Found invitation: %+v", inv)
 	return inv, nil
 }
 

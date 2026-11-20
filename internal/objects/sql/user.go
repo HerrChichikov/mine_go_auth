@@ -2,7 +2,7 @@ package sql
 
 const baseUserSelect = `
 	SELECT 
-		id, email, nickname, password_hash, role, is_active,
+		id, COALESCE(email, ''), nickname, password_hash, role, is_active,
 		max_referrals, referrals_count,
 		created_at, updated_at, email_verified_at, 
 		last_login_at, last_seen_at, referred_by

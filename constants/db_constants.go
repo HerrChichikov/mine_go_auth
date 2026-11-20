@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-const PG_CONNECT string = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 const DB_MAX_OPEN_CONN int = 25                            // Максимальное кол-во открытых соединений
 const DB_MAX_IDLE_CONN int = 10                            // Максимальное кол-во неактивных (idle) соединений
 const DB_MAX_CONN_LIFETIME time.Duration = 5 * time.Minute // Максимальное время жизни соединения (защита от утечек и переподключения при рестарте БД)

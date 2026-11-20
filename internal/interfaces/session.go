@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"alpha/internal/objects/models"
 
@@ -9,15 +10,9 @@ import (
 )
 
 type SessionInterface interface {
-	Create(ctx context.Context, session *models.Session) error
-
-	GetByID(ctx context.Context, id uuid.UUID) (*models.Session, error)
-	GetByTokenHash(ctx context.Context, tokenHash string) (*models.Session, error)
-	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Session, error)
-
-	UpdateLastActive(ctx context.Context, id uuid.UUID) error
-
-	Delete(ctx context.Context, id uuid.UUID) error
-	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
-	DeleteExpired(ctx context.Context) (int64, error)
+	Create(ctx context.Context, session models.AccountSession) error
+	ResolveAccess(ctx context.Context, hash string) (models.AccountSession, error)
+	Rotate(ctx context.Context, refreshHash, nextRefreshHash, nextAccessHash string, accessUntil time.Time) (models.AccountSession, error)
+	Revoke(ctx context.Context, accessHash, refreshHash string) error
+	RevokeUser(ctx context.Context, userID uuid.UUID) error
 }
